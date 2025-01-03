@@ -8,6 +8,7 @@ dependencies = [
   "pandas",
   "pyfiglet",
   "python-telegram-bot",
+  "sendgrid",
   "scikit-learn",
   "seaborn",
   "sty",

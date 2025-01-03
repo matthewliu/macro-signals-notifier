@@ -23,6 +23,7 @@ from metrics.rupl import RUPLMetric
 from metrics.trolololo import TrolololoMetric
 from metrics.two_year_moving_average import TwoYearMovingAverageMetric
 from metrics.woobull_topcap_cvdd import WoobullMetric
+from api.notifications import send_market_update, send_error_notification
 from utils import format_percentage, get_color
 
 
@@ -106,7 +107,14 @@ async def run(json_file: str, charts_file: str, output_dir: str | None) -> None:
         metrics_descriptions.append(metric.description)
 
     print('Generating charts…')
-    plt.savefig(charts_file_path)
+    try:
+        plt.savefig(charts_file_path, format='png')  # Explicitly specify PNG format
+        if charts_file_path.exists():
+            print(f"Chart saved successfully to {charts_file_path}")
+        else:
+            print(f"Error: Chart file was not created at {charts_file_path}")
+    except Exception as e:
+        print(f"Error saving chart: {str(e)}")
 
     confidence_col = 'Confidence'
 
@@ -120,6 +128,14 @@ async def run(json_file: str, charts_file: str, output_dir: str | None) -> None:
         description: df_result_last[name].iloc[0]
         for name, description in zip(metrics_cols, metrics_descriptions, strict=True)
     }
+
+    # Send notifications with the results
+    await send_market_update(
+        price=current_price,
+        confidence_score=df_result_last[confidence_col].iloc[0],
+        confidence_details=confidence_details,
+        charts_path=charts_file_path
+    )
 
     print('\n' + ef.b + ':: Confidence we are at the peak ::' + rs.all)
     print(
@@ -143,7 +159,7 @@ async def run(json_file: str, charts_file: str, output_dir: str | None) -> None:
 
 def run_and_retry(
     json_file: str = 'latest.json',
-    charts_file: str = 'charts.svg',
+    charts_file: str = 'charts.png',
     output_dir: str | None = 'output',
     max_attempts: int = 10,
     sleep_seconds_on_error: int = 10,
@@ -171,18 +187,23 @@ def run_and_retry(
     assert max_attempts > 0, 'Value of the max_attempts argument must be positive'
     assert sleep_seconds_on_error >= 0, 'Value of the sleep_seconds_on_error argument must be non-negative'
 
-    for _ in range(max_attempts):
+    for attempt in range(max_attempts):
         try:
             asyncio.run(run(json_file, charts_file, output_dir))
             exit(0)
 
         except Exception:
+            error_message = traceback.format_exc()
             print(fg.black + bg.yellow + ' An error has occurred! ' + rs.all)
-            traceback.print_exc()
+            print(error_message)
 
-            print(f'\nRetrying in {sleep_seconds_on_error} seconds…', flush=True)
-            for _ in tqdm(range(sleep_seconds_on_error)):
-                time.sleep(1)
+            # Send error notification
+            asyncio.run(send_error_notification(error_message))
+
+            if attempt < max_attempts - 1:  # Don't sleep on the last attempt
+                print(f'\nRetrying in {sleep_seconds_on_error} seconds…', flush=True)
+                for _ in tqdm(range(sleep_seconds_on_error)):
+                    time.sleep(1)
 
     print(f'Max attempts limit has been reached ({max_attempts}).')
     print('Better luck next time!')
