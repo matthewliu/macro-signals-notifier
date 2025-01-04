@@ -78,16 +78,26 @@ Peak Confidence Score: {overall_icon} {confidence_score:.1%}
     
     telegram_text += '\n\nFor detailed analysis, visit: <a href="https://colintalkscrypto.com/cbbi/">CBBI Dashboard</a>'
     
-    # Send Telegram message with chart
+    # Send Telegram messages
     try:
         logger.info("Attempting to send Telegram text message...")
+        # Send main message with metrics but disable link previews
         await send_text(
             chat_id=constants.TELEGRAM_CHAT_ID,
             text=telegram_text,
-            parse_mode='HTML'
+            parse_mode='HTML',
+            disable_web_page_preview=True
         )
         logger.info("Telegram text message sent successfully")
         
+        # Send CBBI link separately to show its preview
+        await send_text(
+            chat_id=constants.TELEGRAM_CHAT_ID,
+            text='<a href="https://colintalkscrypto.com/cbbi/">CBBI Dashboard</a>',
+            parse_mode='HTML'
+        )
+        
+        # Send chart if available
         if charts_path and charts_path.exists():
             logger.info(f"Attempting to send chart image from {charts_path}...")
             with open(charts_path, 'rb') as chart:
