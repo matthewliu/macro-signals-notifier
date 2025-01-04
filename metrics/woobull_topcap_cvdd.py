@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 from sklearn.linear_model import LinearRegression
+from typing import Optional
 
 from metrics.base_metric import BaseMetric
 from utils import HTTP, add_common_markers
@@ -43,7 +44,8 @@ class WoobullMetric(BaseMetric):
     def description(self) -> str:
         return 'Woobull Top Cap vs CVDD'
 
-    def _calculate(self, df: pd.DataFrame, ax: list[Axes]) -> pd.Series:
+    def _calculate(self, df: pd.DataFrame, ax: Optional[list[Axes]]) -> pd.Series:
+        # Fetch and merge data
         df = df.merge(_fetch_df(), on='Date', how='left')
         df['Top'] = df['Top'].ffill()
         df['TopLog'] = np.log(df['Top'])
@@ -72,13 +74,15 @@ class WoobullMetric(BaseMetric):
 
         df['WoobullIndex'] = (df['Woobull'] - df['LowModel']) / (df['HighModel'] - df['LowModel'])
 
-        ax[0].set_title(self.description)
-        sns.lineplot(data=df, x='Date', y='WoobullIndex', ax=ax[0])
-        add_common_markers(df, ax[0])
+        # Plotting only if ax is provided
+        if ax is not None:
+            ax[0].set_title(self.description)
+            sns.lineplot(data=df, x='Date', y='WoobullIndex', ax=ax[0])
+            add_common_markers(df, ax[0])
 
-        sns.lineplot(data=df, x='Date', y='Woobull', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='HighModel', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='LowModel', ax=ax[1])
-        add_common_markers(df, ax[1], price_line=False)
+            sns.lineplot(data=df, x='Date', y='Woobull', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='HighModel', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='LowModel', ax=ax[1])
+            add_common_markers(df, ax[1], price_line=False)
 
         return df['WoobullIndex']

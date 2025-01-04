@@ -1,4 +1,5 @@
 import traceback
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -22,7 +23,7 @@ class RHODLMetric(BaseMetric):
     def description(self) -> str:
         return 'RHODL Ratio'
 
-    def _calculate(self, df: pd.DataFrame, ax: list[Axes]) -> pd.Series:
+    def _calculate(self, df: pd.DataFrame, ax: Optional[list[Axes]]) -> pd.Series:
         try:
             remote_df = cs_fetch(
                 path='chain/index/charts?type=/charts/rhodl-ratio/',
@@ -32,9 +33,9 @@ class RHODLMetric(BaseMetric):
         except Exception:
             traceback.print_exc()
             print(fg.black + bg.yellow + f' Requesting fallback values for {self.name} (from GlassNode) ' + rs.all)
-
             remote_df = gn_fetch(url_selector='rhodl_ratio', col_name='RHODL', a='BTC')
 
+        # Calculations
         df = df.merge(remote_df, on='Date', how='left')
         df['RHODL'] = df['RHODL'].ffill()
         df['RHODLLog'] = np.log(df['RHODL'])
@@ -60,14 +61,16 @@ class RHODLMetric(BaseMetric):
             df['RHODLLogHighModel'] - df['RHODLLogLowModel']
         )
 
-        df['RHODLIndexNoNa'] = df['RHODLIndex'].fillna(0)
-        ax[0].set_title(self.description)
-        sns.lineplot(data=df, x='Date', y='RHODLIndexNoNa', ax=ax[0])
-        add_common_markers(df, ax[0])
+        # Plotting only if ax is provided
+        if ax is not None:
+            df['RHODLIndexNoNa'] = df['RHODLIndex'].fillna(0)
+            ax[0].set_title(self.description)
+            sns.lineplot(data=df, x='Date', y='RHODLIndexNoNa', ax=ax[0])
+            add_common_markers(df, ax[0])
 
-        sns.lineplot(data=df, x='Date', y='RHODLLog', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='RHODLLogHighModel', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='RHODLLogLowModel', ax=ax[1])
-        add_common_markers(df, ax[1], price_line=False)
+            sns.lineplot(data=df, x='Date', y='RHODLLog', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='RHODLLogHighModel', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='RHODLLogLowModel', ax=ax[1])
+            add_common_markers(df, ax[1], price_line=False)
 
         return df['RHODLIndex']

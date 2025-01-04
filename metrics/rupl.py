@@ -2,6 +2,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 from sklearn.linear_model import LinearRegression
+from typing import Optional
 
 from api.coinsoto_api import cs_fetch
 from metrics.base_metric import BaseMetric
@@ -17,7 +18,8 @@ class RUPLMetric(BaseMetric):
     def description(self) -> str:
         return 'RUPL/NUPL Chart'
 
-    def _calculate(self, df: pd.DataFrame, ax: list[Axes]) -> pd.Series:
+    def _calculate(self, df: pd.DataFrame, ax: Optional[list[Axes]]) -> pd.Series:
+        # Calculations
         df = df.merge(
             cs_fetch(
                 path='chain/index/charts?type=/charts/relative-unrealized-prof/',
@@ -48,13 +50,15 @@ class RUPLMetric(BaseMetric):
 
         df['RUPLIndex'] = (df['RUPL'] - df['LowModel']) / (df['HighModel'] - df['LowModel'])
 
-        ax[0].set_title(self.description)
-        sns.lineplot(data=df, x='Date', y='RUPLIndex', ax=ax[0])
-        add_common_markers(df, ax[0])
+        # Plotting only if ax is provided
+        if ax is not None:
+            ax[0].set_title(self.description)
+            sns.lineplot(data=df, x='Date', y='RUPLIndex', ax=ax[0])
+            add_common_markers(df, ax[0])
 
-        sns.lineplot(data=df, x='Date', y='RUPL', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='HighModel', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='LowModel', ax=ax[1])
-        add_common_markers(df, ax[1], price_line=False)
+            sns.lineplot(data=df, x='Date', y='RUPL', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='HighModel', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='LowModel', ax=ax[1])
+            add_common_markers(df, ax[1], price_line=False)
 
         return df['RUPLIndex']

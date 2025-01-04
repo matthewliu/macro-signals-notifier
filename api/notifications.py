@@ -10,10 +10,12 @@ from .telegram_wrapper import send_text, send_photo
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def send_market_update(price: float, confidence_score: float, confidence_details: dict, charts_path: Path):
+async def send_market_update(price: float, confidence_score: float, confidence_details: dict, charts_path: Path | None):
     """
     Send a market update through both Telegram and Email
     """
+    logger.info(f"Starting market update. Price: ${price:,.2f}, Score: {confidence_score:.1%}")
+    
     # Add indicator icons based on score
     def get_indicator_icon(value: float) -> str:
         if value >= 0.7:
@@ -60,9 +62,8 @@ async def send_market_update(price: float, confidence_score: float, confidence_d
         )
         logger.info("Telegram text message sent successfully")
         
-        if charts_path.exists():
+        if charts_path and charts_path.exists():
             logger.info(f"Attempting to send chart image from {charts_path}...")
-            logger.debug(f"Chart file size: {charts_path.stat().st_size} bytes")
             with open(charts_path, 'rb') as chart:
                 await send_photo(
                     chat_id=constants.TELEGRAM_CHAT_ID,
@@ -70,12 +71,15 @@ async def send_market_update(price: float, confidence_score: float, confidence_d
                     caption="Market Metrics Chart"
                 )
             logger.info("Chart image sent successfully")
-        else:
+        elif charts_path:
             logger.error(f"Chart file not found at {charts_path}")
+        else:
+            logger.info("Skipping chart generation (disabled)")
     except Exception as e:
         logger.error(f"Error sending Telegram notification: {str(e)}", exc_info=True)
+        logger.error(f"Full error details: {repr(e)}")
 
-    # Send email
+    # Send email with more detailed logging
     try:
         logger.info("Attempting to send email notification...")
         sender = Email(constants.SENDGRID_FROM_EMAIL)
@@ -92,9 +96,10 @@ async def send_market_update(price: float, confidence_score: float, confidence_d
         if result:
             logger.info("Email sent successfully")
         else:
-            logger.error("Email sending failed")
+            logger.error("Email sending failed - no error message available")
     except Exception as e:
         logger.error(f"Error sending email notification: {str(e)}", exc_info=True)
+        logger.error(f"Full error details: {repr(e)}")
 
 async def send_error_notification(error_message: str):
     """

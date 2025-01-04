@@ -2,6 +2,8 @@ import asyncio
 import time
 import traceback
 from pathlib import Path
+import tempfile
+import os
 
 import fire
 import numpy as np
@@ -61,14 +63,17 @@ def calculate_confidence_score(df: pd.DataFrame, cols: list[str]) -> pd.Series:
     return df[cols].mean(axis=1)
 
 
-async def run(json_file: str, charts_file: str, output_dir: str | None) -> None:
-    output_dir_path = Path.cwd() if output_dir is None else Path(output_dir)
+async def run(json_file: str, charts_file: str, output_dir: str | None, skip_charts: bool = False) -> None:
+    """Modified to handle Heroku's ephemeral filesystem with optional chart generation"""
+    if os.environ.get('DYNO'):
+        output_dir_path = Path(tempfile.mkdtemp())
+    else:
+        output_dir_path = Path.cwd() if output_dir is None else Path(output_dir)
+        if not output_dir_path.exists():
+            output_dir_path.mkdir(mode=0o755, parents=True)
 
     json_file_path = output_dir_path / Path(json_file)
-    charts_file_path = output_dir_path / Path(charts_file)
-
-    if not output_dir_path.exists():
-        output_dir_path.mkdir(mode=0o755, parents=True)
+    charts_file_path = output_dir_path / Path(charts_file) if not skip_charts else None
 
     df_bitcoin = fetch_bitcoin_data()
     df_bitcoin_org = df_bitcoin.copy()
@@ -80,44 +85,55 @@ async def run(json_file: str, charts_file: str, output_dir: str | None) -> None:
     metrics_cols = []
     metrics_descriptions = []
 
-    sns.set(
-        font_scale=0.15,
-        rc={
-            # 'font.size': 6,
-            'figure.titlesize': 8,
-            'axes.titlesize': 5,
-            'axes.labelsize': 4,
-            'xtick.labelsize': 4,
-            'ytick.labelsize': 4,
-            'lines.linewidth': 0.5,
-            'grid.linewidth': 0.3,
-            'savefig.dpi': 1000,
-            'figure.dpi': 300,
-        },
-    )
-
-    axes_per_metric = 2
-    axes = plt.subplots(len(metrics), axes_per_metric, figsize=(4 * axes_per_metric, 3 * len(metrics)))[1]
-    axes = axes.reshape(-1, axes_per_metric)
-    plt.tight_layout(pad=14)
-
-    for metric, ax in zip(metrics, axes, strict=True):
+    if not skip_charts:
+        sns.set(
+            font_scale=0.15,
+            rc={
+                'figure.titlesize': 8,
+                'axes.titlesize': 5,
+                'axes.labelsize': 4,
+                'xtick.labelsize': 4,
+                'ytick.labelsize': 4,
+                'lines.linewidth': 0.5,
+                'grid.linewidth': 0.3,
+                'savefig.dpi': 300,
+                'figure.dpi': 100,
+                'figure.figsize': (8, 6),
+            },
+        )
+        axes_per_metric = 2
+        axes = plt.subplots(len(metrics), axes_per_metric, figsize=(8, len(metrics) * 1.5))[1]
+        axes = axes.reshape(-1, axes_per_metric)
+        plt.tight_layout(pad=1.5)
+    
+    # Calculate metrics with or without visualization
+    for i, metric in enumerate(metrics):
+        ax = None if skip_charts else axes[i]
         df_bitcoin[metric.name] = (await metric.calculate(df_bitcoin_org.copy(), ax)).clip(0, 1)
         metrics_cols.append(metric.name)
         metrics_descriptions.append(metric.description)
 
-    print('Generating charts…')
-    try:
-        plt.savefig(charts_file_path, format='png')  # Explicitly specify PNG format
-        if charts_file_path.exists():
-            print(f"Chart saved successfully to {charts_file_path}")
-        else:
-            print(f"Error: Chart file was not created at {charts_file_path}")
-    except Exception as e:
-        print(f"Error saving chart: {str(e)}")
+    if not skip_charts:
+        print('Generating charts…')
+        try:
+            charts_file_path.parent.mkdir(parents=True, exist_ok=True)
+            plt.savefig(
+                charts_file_path,
+                format='png',
+                bbox_inches='tight',
+                pad_inches=0.1,
+                dpi=300
+            )
+            if charts_file_path.exists():
+                print(f"Chart saved successfully to {charts_file_path}")
+                print(f"Chart file size: {charts_file_path.stat().st_size} bytes")
+            else:
+                print(f"Error: Chart file was not created at {charts_file_path}")
+        except Exception as e:
+            print(f"Error saving chart: {str(e)}")
+            traceback.print_exc()
 
     confidence_col = 'Confidence'
-
     df_result = pd.DataFrame(df_bitcoin[['Date', 'Price', *metrics_cols]])
     df_result.set_index('Date', inplace=True)
     df_result[confidence_col] = calculate_confidence_score(df_result, metrics_cols)
@@ -129,7 +145,6 @@ async def run(json_file: str, charts_file: str, output_dir: str | None) -> None:
         for name, description in zip(metrics_cols, metrics_descriptions, strict=True)
     }
 
-    # Send notifications with the results
     await send_market_update(
         price=current_price,
         confidence_score=df_result_last[confidence_col].iloc[0],
@@ -163,6 +178,7 @@ def run_and_retry(
     output_dir: str | None = 'output',
     max_attempts: int = 10,
     sleep_seconds_on_error: int = 10,
+    skip_charts: bool = False,
 ) -> None:
     """
     Calculates the current CBBI confidence value alongside all the required metrics.
@@ -189,7 +205,7 @@ def run_and_retry(
 
     for attempt in range(max_attempts):
         try:
-            asyncio.run(run(json_file, charts_file, output_dir))
+            asyncio.run(run(json_file, charts_file, output_dir, skip_charts))
             exit(0)
 
         except Exception:

@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 from sklearn.linear_model import LinearRegression
+from typing import Optional
 
 from api.coinsoto_api import cs_fetch
 from metrics.base_metric import BaseMetric
@@ -18,7 +19,8 @@ class TwoYearMovingAverageMetric(BaseMetric):
     def description(self) -> str:
         return '2 Year Moving Average'
 
-    def _calculate(self, df: pd.DataFrame, ax: list[Axes]) -> pd.Series:
+    def _calculate(self, df: pd.DataFrame, ax: Optional[list[Axes]]) -> pd.Series:
+        # Calculations
         df = df.merge(
             cs_fetch(
                 path='getBtcMultiplier',
@@ -54,14 +56,16 @@ class TwoYearMovingAverageMetric(BaseMetric):
 
         df['2YMAIndex'] = (df['PriceLog'] - df['2YMALowModel']) / (df['2YMAHighModel'] - df['2YMALowModel'])
 
-        df['2YMAIndexNoNa'] = df['2YMAIndex'].fillna(0)
-        ax[0].set_title(self.description)
-        sns.lineplot(data=df, x='Date', y='2YMAIndexNoNa', ax=ax[0])
-        add_common_markers(df, ax[0])
+        # Plotting only if ax is provided
+        if ax is not None:
+            df['2YMAIndexNoNa'] = df['2YMAIndex'].fillna(0)
+            ax[0].set_title(self.description)
+            sns.lineplot(data=df, x='Date', y='2YMAIndexNoNa', ax=ax[0])
+            add_common_markers(df, ax[0])
 
-        sns.lineplot(data=df, x='Date', y='PriceLog', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='2YMAHighModel', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='2YMALowModel', ax=ax[1])
-        add_common_markers(df, ax[1], price_line=False)
+            sns.lineplot(data=df, x='Date', y='PriceLog', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='2YMAHighModel', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='2YMALowModel', ax=ax[1])
+            add_common_markers(df, ax[1], price_line=False)
 
         return df['2YMAIndex']

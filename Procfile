@@ -1,1 +1,1 @@
-worker: python -m cbbi.main 
+worker: python main.py 

@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 from sklearn.linear_model import LinearRegression
+from typing import Optional
 
 from api.coinsoto_api import cs_fetch
 from metrics.base_metric import BaseMetric
@@ -18,7 +19,8 @@ class PuellMetric(BaseMetric):
     def description(self) -> str:
         return 'Puell Multiple'
 
-    def _calculate(self, df: pd.DataFrame, ax: list[Axes]) -> pd.Series:
+    def _calculate(self, df: pd.DataFrame, ax: Optional[list[Axes]]) -> pd.Series:
+        # Calculations
         df = df.merge(
             cs_fetch(
                 path='getPuellMultiple',
@@ -35,32 +37,27 @@ class PuellMetric(BaseMetric):
         high_x = high_rows.index.values.reshape(-1, 1)
         high_y = high_rows['PuellLog'].values.reshape(-1, 1)
 
-        # low_rows = df.loc[df['PriceLow'] == 1][1:]
-        # low_x = low_rows.index.values.reshape(-1, 1)
-        # low_y = low_rows['PuellLog'].values.reshape(-1, 1)
-
         x = df.index.values.reshape(-1, 1)
 
         lin_model = LinearRegression()
         lin_model.fit(high_x, high_y)
         df['PuellLogHighModel'] = lin_model.predict(x)
-
-        # lin_model.fit(low_x, low_y)
-        # df['PuellLogLowModel'] = lin_model.predict(x)
         df['PuellLogLowModel'] = -1
 
         df['PuellIndex'] = (df['PuellLog'] - df['PuellLogLowModel']) / (
             df['PuellLogHighModel'] - df['PuellLogLowModel']
         )
 
-        df['PuellIndexNoNa'] = df['PuellIndex'].fillna(0)
-        ax[0].set_title(self.description)
-        sns.lineplot(data=df, x='Date', y='PuellIndexNoNa', ax=ax[0])
-        add_common_markers(df, ax[0])
+        # Plotting only if ax is provided
+        if ax is not None:
+            df['PuellIndexNoNa'] = df['PuellIndex'].fillna(0)
+            ax[0].set_title(self.description)
+            sns.lineplot(data=df, x='Date', y='PuellIndexNoNa', ax=ax[0])
+            add_common_markers(df, ax[0])
 
-        sns.lineplot(data=df, x='Date', y='PuellLog', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='PuellLogHighModel', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='PuellLogLowModel', ax=ax[1])
-        add_common_markers(df, ax[1], price_line=False)
+            sns.lineplot(data=df, x='Date', y='PuellLog', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='PuellLogHighModel', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='PuellLogLowModel', ax=ax[1])
+            add_common_markers(df, ax[1], price_line=False)
 
         return df['PuellIndex']

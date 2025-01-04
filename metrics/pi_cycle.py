@@ -1,4 +1,5 @@
 from itertools import zip_longest
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -18,7 +19,7 @@ class PiCycleMetric(BaseMetric):
     def description(self) -> str:
         return 'Pi Cycle Top Indicator'
 
-    def _calculate(self, df: pd.DataFrame, ax: list[Axes]) -> pd.Series:
+    def _calculate(self, df: pd.DataFrame, ax: Optional[list[Axes]]) -> pd.Series:
         df['111DMA'] = df['Price'].rolling(111).mean()
         df['350DMAx2'] = df['Price'].rolling(350).mean() * 2
 
@@ -58,9 +59,10 @@ class PiCycleMetric(BaseMetric):
         df['PiCycleIndex'] = 1 - (df['PiCycleDiff'] / df['PreviousPiCycleDiffHighValue'])
         df.loc[df['PiCycleIndex'] < 0, 'PiCycleIndex'] = 0
 
-        df['PiCycleIndexNoNa'] = df['PiCycleIndex'].fillna(0)
-        ax[0].set_title(self.description)
-        sns.lineplot(data=df, x='Date', y='PiCycleIndexNoNa', ax=ax[0])
-        add_common_markers(df, ax[0])
+        if ax is not None:
+            df['PiCycleIndexNoNa'] = df['PiCycleIndex'].fillna(0)
+            ax[0].set_title(self.description)
+            sns.lineplot(data=df, x='Date', y='PiCycleIndexNoNa', ax=ax[0])
+            add_common_markers(df, ax[0])
 
         return df['PiCycleIndex']

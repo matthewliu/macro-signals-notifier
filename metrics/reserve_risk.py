@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 from sklearn.linear_model import LinearRegression
+from typing import Optional
 
 from api.coinsoto_api import cs_fetch
 from metrics.base_metric import BaseMetric
@@ -18,7 +19,7 @@ class ReserveRiskMetric(BaseMetric):
     def description(self) -> str:
         return 'Reserve Risk'
 
-    def _calculate(self, df: pd.DataFrame, ax: list[Axes]) -> pd.Series:
+    def _calculate(self, df: pd.DataFrame, ax: Optional[list[Axes]]) -> pd.Series:
         days_shift = 1
 
         df = df.merge(
@@ -54,14 +55,15 @@ class ReserveRiskMetric(BaseMetric):
 
         df['RiskIndex'] = (df['RiskLog'] - df['LowModel']) / (df['HighModel'] - df['LowModel'])
 
-        df['RiskIndexNoNa'] = df['RiskIndex'].fillna(0)
-        ax[0].set_title(self.description)
-        sns.lineplot(data=df, x='Date', y='RiskIndexNoNa', ax=ax[0])
-        add_common_markers(df, ax[0])
+        if ax is not None:
+            df['RiskIndexNoNa'] = df['RiskIndex'].fillna(0)
+            ax[0].set_title(self.description)
+            sns.lineplot(data=df, x='Date', y='RiskIndexNoNa', ax=ax[0])
+            add_common_markers(df, ax[0])
 
-        sns.lineplot(data=df, x='Date', y='RiskLog', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='HighModel', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='LowModel', ax=ax[1])
-        add_common_markers(df, ax[1], price_line=False)
+            sns.lineplot(data=df, x='Date', y='RiskLog', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='HighModel', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='LowModel', ax=ax[1])
+            add_common_markers(df, ax[1], price_line=False)
 
         return df['RiskIndex']

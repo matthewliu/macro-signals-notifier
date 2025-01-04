@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 from sklearn.linear_model import LinearRegression
+from typing import Optional
 
 from metrics.base_metric import BaseMetric
 from utils import add_common_markers
@@ -17,7 +18,7 @@ class TrolololoMetric(BaseMetric):
     def description(self) -> str:
         return 'Bitcoin Trolololo Trend Line'
 
-    def _calculate(self, df: pd.DataFrame, ax: list[Axes]) -> pd.Series:
+    def _calculate(self, df: pd.DataFrame, ax: Optional[list[Axes]]) -> pd.Series:
         begin_date = pd.to_datetime('2012-01-01')
 
         df['TroloDaysSinceBegin'] = (df['Date'] - begin_date).dt.days
@@ -57,13 +58,15 @@ class TrolololoMetric(BaseMetric):
 
         df['TroloIndex'] = (df['PriceLog'] - df['TroloLowModel']) / (df['TroloHighModel'] - df['TroloLowModel'])
 
-        ax[0].set_title(self.description)
-        sns.lineplot(data=df, x='Date', y='TroloIndex', ax=ax[0])
-        add_common_markers(df, ax[0])
+        # Plotting only if ax is provided
+        if ax is not None:
+            ax[0].set_title(self.description)
+            sns.lineplot(data=df, x='Date', y='TroloIndex', ax=ax[0])
+            add_common_markers(df, ax[0])
 
-        sns.lineplot(data=df, x='Date', y='PriceLog', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='TroloHighModel', ax=ax[1])
-        sns.lineplot(data=df, x='Date', y='TroloLowModel', ax=ax[1])
-        add_common_markers(df, ax[1], price_line=False)
+            sns.lineplot(data=df, x='Date', y='PriceLog', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='TroloHighModel', ax=ax[1])
+            sns.lineplot(data=df, x='Date', y='TroloLowModel', ax=ax[1])
+            add_common_markers(df, ax[1], price_line=False)
 
         return df['TroloIndex']
