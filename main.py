@@ -87,18 +87,18 @@ async def run(json_file: str, charts_file: str, output_dir: str | None, skip_cha
 
     if not skip_charts:
         sns.set(
-            font_scale=0.15,
+            font_scale=0.2,
             rc={
-                'figure.titlesize': 8,
-                'axes.titlesize': 5,
-                'axes.labelsize': 4,
-                'xtick.labelsize': 4,
-                'ytick.labelsize': 4,
-                'lines.linewidth': 0.5,
-                'grid.linewidth': 0.3,
+                'figure.titlesize': 10,
+                'axes.titlesize': 7,
+                'axes.labelsize': 6,
+                'xtick.labelsize': 6,
+                'ytick.labelsize': 6,
+                'lines.linewidth': 0.8,
+                'grid.linewidth': 0.4,
                 'savefig.dpi': 300,
                 'figure.dpi': 100,
-                'figure.figsize': (8, 6),
+                'figure.figsize': (12, 9),
             },
         )
         axes_per_metric = 2

@@ -63,7 +63,14 @@ def send_message(sender, recipients, subject, body_text, body_html,
         if attachments:
             for attach in attachments:
                 attachment = sgh.Attachment()
-                attachment.file_content = sgh.FileContent(attach.content)
+                if isinstance(attach.content, (str, bytes)):
+                    content = attach.content
+                else:
+                    # For file objects, read the content
+                    content = attach.content.read()
+                    if isinstance(content, str):
+                        content = content.encode()
+                attachment.file_content = sgh.FileContent(content)
                 attachment.file_type = sgh.FileType(attach.type)
                 attachment.file_name = sgh.FileName(attach.file_name)
                 attachment.disposition = sgh.Disposition(attach.disposition)
