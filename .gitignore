@@ -319,3 +319,5 @@ pyrightconfig.json
 # application specific
 output
 *.ignore
+
+cookies.json
