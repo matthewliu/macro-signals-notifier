@@ -6,7 +6,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 
-from metrics.base_metric import BaseMetric
+from cbbi_metrics.base_metric import BaseMetric
 from utils import add_common_markers, mark_highs_lows, split_df_on_index_gap
 
 

@@ -6,7 +6,7 @@ from sklearn.linear_model import LinearRegression
 from typing import Optional
 
 from api.coinsoto_api import cs_fetch
-from metrics.base_metric import BaseMetric
+from cbbi_metrics.base_metric import BaseMetric
 from utils import add_common_markers
 
 

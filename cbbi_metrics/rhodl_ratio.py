@@ -10,7 +10,7 @@ from sty import bg, fg, rs
 
 from api.coinsoto_api import cs_fetch
 from api.glassnode_api import gn_fetch
-from metrics.base_metric import BaseMetric
+from cbbi_metrics.base_metric import BaseMetric
 from utils import add_common_markers
 
 

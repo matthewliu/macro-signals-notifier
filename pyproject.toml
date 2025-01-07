@@ -21,6 +21,9 @@ dependencies = [
     "sty",
     "tqdm",
     "python-dotenv",
+    "tradingview-ta>=0.5.0",
+    "selenium>=4.0.0",
+    "webdriver-manager"
 ]
 
 [tool.uv]
