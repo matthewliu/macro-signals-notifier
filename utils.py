@@ -10,12 +10,24 @@ import telegram
 from httpx import Client
 from matplotlib.axes import Axes
 from sty import bg
+from config.constants import BLOCKCHAIR_API_KEY
+import requests
+import logging
 
-HTTP = Client(
-    headers={'User-Agent': 'Mozilla/5.0 (Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0'},
-    timeout=30,
-    follow_redirects=True,
-)
+logger = logging.getLogger(__name__)
+
+class HTTP:
+    @staticmethod
+    def get(*args, **kwargs):
+        try:
+            response = requests.get(*args, **kwargs)
+            logger.debug(f"HTTP GET {args[0]} - Status: {response.status_code}")
+            return response
+        except Exception as e:
+            logger.error(f"HTTP GET failed for {args[0]}: {str(e)}")
+            raise
+
+HTTP = HTTP()
 
 
 def mark_highs_lows(

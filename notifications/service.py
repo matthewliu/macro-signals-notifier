@@ -4,6 +4,8 @@ import logging
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
+import traceback
+from .base import NotificationContent, MarketUpdate, ErrorNotification
 
 # CBBI metric imports
 from cbbi_metrics.base_metric import BaseMetric
@@ -17,13 +19,13 @@ from cbbi_metrics.trolololo import TrolololoMetric
 from cbbi_metrics.two_year_moving_average import TwoYearMovingAverageMetric
 from cbbi_metrics.woobull_topcap_cvdd import WoobullMetric
 
+
 # Local imports
 from techdev_metrics.base_metric import TechnicalIndicator
-from .base import MarketUpdate, ErrorNotification, IndicatorType
+from .base import MarketUpdate, ErrorNotification, IndicatorType, NotificationContent
 from .email_notifier import EmailNotifier
 from .telegram_notifier import TelegramNotifier
 from .source_urls import CBBI_METRIC_URLS, TECHDEV_METRIC_URLS, DEFAULT_CBBI_URL, DEFAULT_TECHDEV_URL
-from api.tradingview_wrapper import TradingViewWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -57,28 +59,36 @@ class CBBIMetricService:
 
     async def process_metrics(self, df_bitcoin: pd.DataFrame, charts_path: Optional[Path] = None) -> tuple[float, float, Dict[str, float]]:
         """Process CBBI metrics and generate charts"""
-        print("\nProcessing CBBI Metrics...")
+        logger.info("\nProcessing CBBI Metrics...")
+        
+        # Debug input data
+        logger.debug(f"Input DataFrame shape: {df_bitcoin.shape}")
+        logger.debug(f"Input columns: {df_bitcoin.columns.tolist()}")
+        logger.debug("Sample of input data:")
+        logger.debug(df_bitcoin[['Date', 'Price']].head().to_string())
+        
         metrics = self.get_metrics()
         metrics_cols = []
         metrics_descriptions = []
         
         if charts_path:
-            print(f"Setting up charts at: {charts_path}")
+            logger.info(f"Setting up charts at: {charts_path}")
             self._setup_chart_style()
             axes = self._create_chart_axes(len(metrics))
         
         # Calculate metrics
-        print("\nCalculating metrics:")
+        logger.info("\nCalculating metrics:")
         for i, metric in enumerate(metrics):
             ax = None if not charts_path else axes[i]
             try:
+                logger.debug(f"Processing metric: {metric.name}")
                 df_bitcoin[metric.name] = (await metric.calculate(df_bitcoin.copy(), ax)).clip(0, 1)
                 value = df_bitcoin[metric.name].iloc[-1]
                 metrics_cols.append(metric.name)
                 metrics_descriptions.append(metric.description)
-                print(f"{metric.name}: {value:.2%}")
+                logger.info(f"{metric.name}: {value:.2%}")
             except Exception as e:
-                print(f"Error calculating {metric.name}: {str(e)}")
+                logger.error(f"Error calculating {metric.name}: {str(e)}", exc_info=True)
                 raise
 
         if charts_path:
@@ -251,7 +261,9 @@ class NotificationService:
             )
 
         except Exception as e:
-            logger.error(f"Error processing updates: {str(e)}")
+            error_msg = f"Error processing updates: {str(e)}\n\nStack trace:\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            await self.send_error(error_msg)
             raise
 
     async def send_cbbi_update(self, price: float, confidence_score: float, 
@@ -281,16 +293,21 @@ class NotificationService:
         )
         await self._send_update(content)
 
-    async def _send_update(self, content: MarketUpdate):
+    async def _send_update(self, content: NotificationContent):
         """Send update through all channels"""
-        await self.telegram.send_market_update(content)
-        await self.email.send_market_update(content)
+        if isinstance(content, MarketUpdate):
+            await self.telegram.send_market_update(content)
+            await self.email.send_market_update(content)
+        elif isinstance(content, ErrorNotification):
+            await self.telegram.send_error(content)
+            await self.email.send_error(content)
+        else:
+            raise ValueError(f"Unsupported notification type: {type(content)}")
 
-    async def send_error(self, error_message: str):
+    async def send_error(self, error_message: str) -> None:
         """Send error notification"""
         content = ErrorNotification(
-            title="Market Analysis Error",
+            title="Error in Market Analysis",
             error_message=error_message
         )
-        await self.telegram.send_error(content)
-        await self.email.send_error(content)
+        await self._send_update(content)

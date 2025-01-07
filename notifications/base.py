@@ -26,10 +26,16 @@ class MarketUpdate(NotificationContent):
     confidence_score: Optional[float] = None
     confidence_details: Dict[str, float] = field(default_factory=dict)
 
-class ErrorNotification:
-    def __init__(self, error_message: str):
-        self.title = "Market Analysis Error"  # Default title
-        self.error_message = error_message
+@dataclass
+class ErrorNotification(NotificationContent):
+    """Error notification content"""
+    def __init__(self, title: str, error_message: str):
+        super().__init__(
+            title=title,
+            body=error_message,
+            price=0.0,
+            error_message=error_message
+        )
 
 class BaseNotifier(ABC):
     """Abstract base class for notification implementations"""
@@ -40,18 +46,4 @@ class BaseNotifier(ABC):
     @abstractmethod
     async def send_error(self, content: ErrorNotification):
         pass
-    
-    def get_indicator_icon(self, value: float) -> tuple[str, str]:
-        """Returns (emoji, color) tuple based on value thresholds"""
-        if value >= 0.9:
-            return "⛔", "#FF0000"
-        elif value >= 0.7:
-            return "⚠️", "#FFA500"
-        elif value >= 0.5:
-            return "⚡", "#FFFF00"
-        elif value >= 0.3:
-            return "🌱", "#90EE90"
-        elif value >= 0.1:
-            return "💎", "#008000"
-        else:
-            return "🚀", "#00FF00"
+

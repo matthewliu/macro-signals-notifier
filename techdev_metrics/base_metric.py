@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional, List
-from api.tradingview_wrapper import TradingViewWrapper
+from scrapers.tradingview_wrapper import TradingViewWrapper
 from tradingview_ta import Interval
 
 @dataclass

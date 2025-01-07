@@ -22,6 +22,12 @@ SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@example.com')
 SENDGRID_TO_EMAIL = os.getenv('SENDGRID_TO_EMAIL', 'user@example.com') 
 
+# Blockchair configuration
+BLOCKCHAIR_API_KEY = os.getenv('BLOCKCHAIR_API_KEY')
+
+# CoinMarketCap configuration
+COINMARKETCAP_API_KEY = os.getenv('COINMARKETCAP_API_KEY')
+
 # TradingView configuration
 TRADINGVIEW_SESSION_TOKEN = os.getenv('TRADINGVIEW_SESSION_TOKEN')
 TRADINGVIEW_SESSION_SIGNATURE = os.getenv('TRADINGVIEW_SESSION_SIGNATURE')

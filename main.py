@@ -19,28 +19,42 @@ logger = logging.getLogger(__name__)
 
 async def run(json_file: str, charts_file: str, output_dir: str | None, skip_charts: bool = False) -> None:
     """Process market metrics and send notifications"""
-    # Setup output paths
-    output_dir_path = Path(tempfile.mkdtemp()) if os.environ.get('DYNO') else Path(output_dir or Path.cwd())
-    output_dir_path.mkdir(mode=0o755, parents=True, exist_ok=True)
-    
-    json_file_path = output_dir_path / Path(json_file)
-    charts_file_path = output_dir_path / Path(charts_file) if not skip_charts else None
-
-    # Initialize notification service
-    notification_service = NotificationService()
+    logger.info("Starting market metrics processing...")
     
     try:
+        # Setup output paths
+        output_dir = Path(output_dir) if output_dir else Path.cwd()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        json_path = output_dir / json_file
+        charts_path = output_dir / charts_file if not skip_charts else None
+        
+        logger.info(f"Output directory: {output_dir}")
+        logger.info(f"JSON file path: {json_path}")
+        logger.info(f"Charts file path: {charts_path}")
+        
         # Fetch data and process all metrics
+        logger.info("Calling fetch_bitcoin_data()...")
         df_bitcoin = fetch_bitcoin_data()
         
+        # Debug log the DataFrame
+        logger.info(f"DataFrame shape: {df_bitcoin.shape}")
+        logger.info(f"DataFrame columns: {df_bitcoin.columns.tolist()}")
+        logger.info("\nFirst few rows of data:")
+        logger.info(df_bitcoin.head().to_string())
+        
+        if df_bitcoin.empty:
+            raise ValueError("Received empty DataFrame from fetch_bitcoin_data")
+            
         # Process metrics and send notifications
+        notification_service = NotificationService()
         await notification_service.process_and_send_updates(
             df_bitcoin=df_bitcoin,
-            charts_path=charts_file_path if not skip_charts else None
+            charts_path=charts_path
         )
 
         # Save results to JSON
-        df_bitcoin.to_json(json_file_path, double_precision=4, date_unit='s', indent=2)
+        df_bitcoin.to_json(json_path, double_precision=4, date_unit='s', indent=2)
         
         # Print source information
         print('\nSource code: ' + ef.u + fg.li_blue + 'https://github.com/Zaczero/CBBI' + rs.all)
